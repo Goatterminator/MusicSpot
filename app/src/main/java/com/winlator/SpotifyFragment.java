@@ -63,7 +63,9 @@ public class SpotifyFragment extends Fragment {
     private static final String SHORTCUT_PORTRAIT = "MusicSpot - Spotify (allo)";
     private static final String SHORTCUT_LANDSCAPE = "MusicSpot - Spotify (fekvo)";
     private static final String SHORTCUT_DEBUG = "MusicSpot - Spotify (naplo)";
-    private static final String DEBUG_ARGS = "--disable-gpu --disable-gpu-compositing --no-sandbox --enable-logging=stderr";
+    // OpenGL is not available to Wine on many phones (log: "Unable to activate OpenGL context"), so render in software.
+    private static final String SAFE_ARGS = "--disable-gpu --disable-gpu-compositing --no-sandbox";
+    private static final String DEBUG_ARGS = SAFE_ARGS + " --enable-logging=stderr";
     private static final String PREF_DEBUG = "musicspot_debug";
 
     private TextView statusView;
@@ -200,6 +202,8 @@ public class SpotifyFragment extends Fragment {
         try {
             JSONObject data = new JSONObject();
             data.put("name", CONTAINER_NAME);
+            // Spotify needs the COM (RpcSs) and BITS services, which the default "Essential" mode disables.
+            data.put("startupSelection", Container.STARTUP_SELECTION_NORMAL);
             manager.createContainerAsync(data, (newContainer) -> {
                 preloaderDialog.close();
                 if (newContainer == null) {
@@ -341,12 +345,33 @@ public class SpotifyFragment extends Fragment {
             "pause\r\n");
     }
 
+    /** Settings Spotify needs; applied to existing containers too, so older installs get fixed. */
+    private void ensureContainerSettings(Container container) {
+        if (container.getStartupSelection() != Container.STARTUP_SELECTION_NORMAL) {
+            container.setStartupSelection(Container.STARTUP_SELECTION_NORMAL);
+            container.saveData();
+        }
+    }
+
+    /** Older shortcuts were created without arguments; give them the safe software-rendering ones. */
+    private void ensureSafeArgs(File shortcutFile, Container container) {
+        if (!shortcutFile.isFile()) return;
+        com.winlator.container.Shortcut shortcut = new com.winlator.container.Shortcut(container, shortcutFile);
+        String args = shortcut.getExtra("execArgs");
+        if (!args.contains("--disable-gpu")) {
+            shortcut.putExtra("execArgs", (SAFE_ARGS + " " + args).trim());
+            shortcut.saveData();
+        }
+    }
+
     private void createShortcuts(Container container) {
         File desktopDir = new File(container.getUserDir(), "Desktop");
         desktopDir.mkdirs();
+        ensureSafeArgs(new File(desktopDir, SHORTCUT_PORTRAIT + ".desktop"), container);
+        ensureSafeArgs(new File(desktopDir, SHORTCUT_LANDSCAPE + ".desktop"), container);
         writeShortcut(new File(desktopDir, SHORTCUT_PORTRAIT + ".desktop"), SPOTIFY_EXE_DOS,
-            "screenSize=" + PORTRAIT_SCREEN_SIZE + "\norientation=portrait\n");
-        writeShortcut(new File(desktopDir, SHORTCUT_LANDSCAPE + ".desktop"), SPOTIFY_EXE_DOS, "");
+            "screenSize=" + PORTRAIT_SCREEN_SIZE + "\norientation=portrait\nexecArgs=" + SAFE_ARGS + "\n");
+        writeShortcut(new File(desktopDir, SHORTCUT_LANDSCAPE + ".desktop"), SPOTIFY_EXE_DOS, "execArgs=" + SAFE_ARGS + "\n");
         writeShortcut(new File(desktopDir, SHORTCUT_DEBUG + ".desktop"), SPOTIFY_EXE_DOS, "execArgs=" + DEBUG_ARGS + "\n");
         writeShortcut(new File(desktopDir, "MusicSpot - Spicetify alkalmazasa.desktop"), CMD_EXE_DOS, "execArgs=/c " + WORK_DIR_DOS + "\\apply.bat\n");
         writeShortcut(new File(desktopDir, "MusicSpot - Spicetify ujra.desktop"), CMD_EXE_DOS, "execArgs=/c " + WORK_DIR_DOS + "\\reapply.bat\n");
@@ -390,6 +415,7 @@ public class SpotifyFragment extends Fragment {
             return;
         }
         Container container = getSpotifyContainer();
+        ensureContainerSettings(container);
         Intent intent = new Intent(requireActivity(), XServerDisplayActivity.class);
         intent.putExtra("container_id", container.id);
         intent.putExtra("exec_path", exe.getPath());
@@ -485,6 +511,7 @@ public class SpotifyFragment extends Fragment {
         if (!ensureReady()) return;
         if (!debug) setDebugMode(false);
         Container container = getSpotifyContainer();
+        ensureContainerSettings(container);
         createShortcuts(container);
         File shortcut = new File(new File(container.getUserDir(), "Desktop"), name + ".desktop");
         if (name.startsWith("MusicSpot - Spotify") &&
