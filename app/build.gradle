@@ -8,8 +8,10 @@ android {
         applicationId 'com.winlator'
         minSdkVersion 26
         targetSdkVersion 28
-        versionCode 33
-        versionName "11.2"
+        // MusicSpot build number = GitHub Actions run number (0 for local builds).
+        def msBuild = (System.getenv("GITHUB_RUN_NUMBER") ?: "0").toInteger()
+        versionCode 330000 + msBuild
+        versionName "MusicSpot #" + msBuild + " (Winlator 11.2)"
     }
 
     signingConfigs {

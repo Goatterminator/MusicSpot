@@ -184,6 +184,11 @@ public class SpotifyFragment extends Fragment {
             sb.append("Letöltések: ").append(new File(workDir, "spicetify/spicetify.exe").isFile() && new File(workDir, "SpotifySetup.exe").isFile() ? "kész" : "hiányzik").append('\n');
             sb.append("Spotify:   ").append(new File(driveC, "users/" + RootFS.USER + "/AppData/Roaming/Spotify/Spotify.exe").isFile() ? "telepítve" : "nincs telepítve").append('\n');
         }
+        try {
+            String version = requireContext().getPackageManager().getPackageInfo(requireContext().getPackageName(), 0).versionName;
+            sb.append("Verzió:    ").append(version).append('\n');
+        }
+        catch (Exception e) {}
         statusView.setText(sb.toString());
     }
 
