@@ -58,6 +58,11 @@ public class SpotifyFragment extends Fragment {
     private static final String SPOTIFY_EXE_DOS = "C:\\users\\" + RootFS.USER + "\\AppData\\Roaming\\Spotify\\Spotify.exe";
     private static final String CMD_EXE_DOS = "C:\\windows\\system32\\cmd.exe";
 
+    private static final String THEME_NAME = "MusicSpotMobile";
+    private static final String PORTRAIT_SCREEN_SIZE = "864x1920";
+    private static final String SHORTCUT_PORTRAIT = "MusicSpot - Spotify (allo)";
+    private static final String SHORTCUT_LANDSCAPE = "MusicSpot - Spotify (fekvo)";
+
     private TextView statusView;
     private ContainerManager manager;
     private SharedPreferences preferences;
@@ -108,14 +113,16 @@ public class SpotifyFragment extends Fragment {
         addButton(layout, "1. Előkészítés (letöltések)", v -> prepare());
         addButton(layout, "2. Spotify telepítése", v -> launchExe(new File(getWorkDir(), "SpotifySetup.exe")));
         addButton(layout, "3. Spicetify alkalmazása", v -> launchScript("apply.bat"));
-        addButton(layout, "4. Spotify indítása", v -> launchShortcut("MusicSpot - Spotify"));
+        addButton(layout, "4. Spotify indítása – álló, telefonos", v -> launchShortcut(SHORTCUT_PORTRAIT));
+        addButton(layout, "Spotify indítása – fekvő, asztali", v -> launchShortcut(SHORTCUT_LANDSCAPE));
         addButton(layout, "Spicetify újra (Spotify frissítés után)", v -> launchScript("reapply.bat"));
 
         TextView help = new TextView(context);
         help.setText("\nTippek:\n" +
             "• A 2. lépésben jelentkezz be, majd zárd be a Spotify-t, mielőtt a 3. lépést futtatod.\n" +
             "• Témákat és bővítményeket a Spotify-on belül, a Marketplace menüpontban találsz.\n" +
-            "• Ha a Spotify fekete ablakkal indul, a Parancsikonok menüben a „MusicSpot - Spotify” beállításainál " +
+            "• Álló módban a „MusicSpot Mobile” téma nagyobb, telefonos felületet ad; fekvő módban a megszokott kinézet marad.\n" +
+            "• Ha a Spotify fekete ablakkal indul, a Parancsikonok menüben a „MusicSpot - Spotify” parancsikon beállításainál " +
             "add hozzá az indítási paraméterekhez: --disable-gpu");
         layout.addView(help);
 
@@ -207,6 +214,7 @@ public class SpotifyFragment extends Fragment {
         final File workDir = new File(getDriveC(container), "musicspot");
         workDir.mkdirs();
         writeScripts(workDir);
+        installTheme(container);
         createShortcuts(container);
 
         final File spotifySetup = new File(workDir, "SpotifySetup.exe");
@@ -312,6 +320,7 @@ public class SpotifyFragment extends Fragment {
 
         FileUtils.writeString(new File(workDir, "apply.bat"), header +
             "spicetify.exe --bypass-admin config custom_apps marketplace\r\n" +
+            "spicetify.exe --bypass-admin config current_theme " + THEME_NAME + " color_scheme Mobile inject_css 1 replace_colors 1\r\n" +
             "spicetify.exe --bypass-admin backup apply\r\n" +
             footer);
 
@@ -323,12 +332,21 @@ public class SpotifyFragment extends Fragment {
     private void createShortcuts(Container container) {
         File desktopDir = new File(container.getUserDir(), "Desktop");
         desktopDir.mkdirs();
-        writeShortcut(new File(desktopDir, "MusicSpot - Spotify.desktop"), SPOTIFY_EXE_DOS, "");
-        writeShortcut(new File(desktopDir, "MusicSpot - Spicetify alkalmazasa.desktop"), CMD_EXE_DOS, "/c " + WORK_DIR_DOS + "\\apply.bat");
-        writeShortcut(new File(desktopDir, "MusicSpot - Spicetify ujra.desktop"), CMD_EXE_DOS, "/c " + WORK_DIR_DOS + "\\reapply.bat");
+        writeShortcut(new File(desktopDir, SHORTCUT_PORTRAIT + ".desktop"), SPOTIFY_EXE_DOS,
+            "screenSize=" + PORTRAIT_SCREEN_SIZE + "\norientation=portrait\n");
+        writeShortcut(new File(desktopDir, SHORTCUT_LANDSCAPE + ".desktop"), SPOTIFY_EXE_DOS, "");
+        writeShortcut(new File(desktopDir, "MusicSpot - Spicetify alkalmazasa.desktop"), CMD_EXE_DOS, "execArgs=/c " + WORK_DIR_DOS + "\\apply.bat\n");
+        writeShortcut(new File(desktopDir, "MusicSpot - Spicetify ujra.desktop"), CMD_EXE_DOS, "execArgs=/c " + WORK_DIR_DOS + "\\reapply.bat\n");
     }
 
-    private static void writeShortcut(File file, String dosPath, String execArgs) {
+    private void installTheme(Container container) {
+        File themeDir = new File(getDriveC(container), "users/" + RootFS.USER + "/AppData/Roaming/spicetify/Themes/" + THEME_NAME);
+        FileUtils.delete(themeDir);
+        FileUtils.copy(requireContext(), "musicspot/" + THEME_NAME, themeDir);
+    }
+
+    /** extraData: newline-separated key=value lines for the [Extra Data] section, or "". */
+    private static void writeShortcut(File file, String dosPath, String extraData) {
         if (file.isFile()) return; // keep user customisations
         // Wine's .desktop format escapes each backslash as four backslashes (see Shortcut/StringUtils.unescapeDOSPath).
         String escaped = dosPath.replace("\\", "\\\\\\\\");
@@ -337,7 +355,7 @@ public class SpotifyFragment extends Fragment {
             "Exec=env WINEPREFIX=\"/home/" + RootFS.USER + "/.wine\" wine " + escaped + "\n" +
             "Type=Application\n" +
             "StartupNotify=true\n";
-        if (!execArgs.isEmpty()) content += "\n[Extra Data]\nexecArgs=" + execArgs + "\n";
+        if (!extraData.isEmpty()) content += "\n[Extra Data]\n" + extraData;
         FileUtils.writeString(file, content);
     }
 
@@ -371,6 +389,7 @@ public class SpotifyFragment extends Fragment {
             toast("A Spicetify még nincs letöltve. Futtasd az 1. lépést.");
             return;
         }
+        installTheme(getSpotifyContainer());
         launchShortcut(name.equals("apply.bat") ? "MusicSpot - Spicetify alkalmazasa" : "MusicSpot - Spicetify ujra");
     }
 
@@ -379,7 +398,7 @@ public class SpotifyFragment extends Fragment {
         Container container = getSpotifyContainer();
         createShortcuts(container);
         File shortcut = new File(new File(container.getUserDir(), "Desktop"), name + ".desktop");
-        if (name.equals("MusicSpot - Spotify") &&
+        if (name.startsWith("MusicSpot - Spotify") &&
             !new File(getDriveC(container), "users/" + RootFS.USER + "/AppData/Roaming/Spotify/Spotify.exe").isFile()) {
             toast("A Spotify még nincs telepítve. Futtasd a 2. lépést.");
             return;

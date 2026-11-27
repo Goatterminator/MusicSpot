@@ -1,0 +1,83 @@
+/*
+ * MusicSpot Mobile - Spicetify theme
+ *
+ * Landscape (wide) window: normal desktop look.
+ * Portrait (tall) window: bigger UI, bigger touch targets, compact layout,
+ * so the desktop Spotify feels closer to a phone app.
+ *
+ * Spotify changes its class names often. The selectors below use the long-lived
+ * "Root__*" classes and data-testid attributes; if something looks off after a
+ * Spotify update, edit this file in %APPDATA%\spicetify\Themes\MusicSpotMobile.
+ */
+
+@media (max-aspect-ratio: 1/1) {
+  :root {
+    --musicspot-zoom: 1.5;
+  }
+
+  /* Scale the whole UI so the ~860px-wide window lays out like a ~570px phone screen. */
+  body {
+    zoom: var(--musicspot-zoom);
+  }
+
+  /* Hide the right "Now playing" / friend activity panel - no room on a phone. */
+  .Root__right-sidebar {
+    display: none !important;
+  }
+
+  /* Keep the library as a slim icon column. */
+  .Root__nav-bar {
+    max-width: 80px !important;
+    min-width: 72px !important;
+  }
+
+  /* Bigger touch targets in the player bar. */
+  .Root__now-playing-bar button,
+  [data-testid="control-button-playpause"],
+  [data-testid="control-button-skip-forward"],
+  [data-testid="control-button-skip-back"] {
+    min-width: 44px !important;
+    min-height: 44px !important;
+  }
+
+  [data-testid="control-button-playpause"] {
+    transform: scale(1.25);
+  }
+
+  /* Player bar: stack track info above the controls. */
+  .Root__now-playing-bar footer > div,
+  .Root__now-playing-bar [data-testid="now-playing-bar"] {
+    flex-wrap: wrap !important;
+    height: auto !important;
+    row-gap: 8px;
+  }
+
+  /* Hide desktop-only extras: device picker text, mini-player, full-screen buttons, volume slider. */
+  [data-testid="pip-toggle-button"],
+  [data-testid="fullscreen-mode-button"],
+  [data-testid="volume-bar"] {
+    display: none !important;
+  }
+
+  /* Rows in playlists: taller, easier to tap. */
+  [data-testid="tracklist-row"] {
+    min-height: 56px !important;
+  }
+
+  /* Hide the "Album" and "Date added" columns in track lists. */
+  [data-testid="tracklist-row"] > [aria-colindex="3"],
+  [data-testid="tracklist-row"] > [aria-colindex="4"],
+  [role="row"] > [aria-colindex="3"],
+  [role="row"] > [aria-colindex="4"] {
+    display: none !important;
+  }
+
+  /* Smoother finger scrolling feel. */
+  * {
+    scroll-behavior: smooth;
+  }
+
+  ::-webkit-scrollbar {
+    width: 4px !important;
+  }
+}

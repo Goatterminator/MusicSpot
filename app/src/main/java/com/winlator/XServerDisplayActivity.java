@@ -7,6 +7,7 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
 import android.os.Bundle;
 import android.view.KeyEvent;
@@ -194,6 +195,9 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
             String shortcutPath = getIntent().getStringExtra("shortcut_path");
             if (shortcutPath != null && !shortcutPath.isEmpty()) shortcut = new Shortcut(container, new File(shortcutPath));
+            if (shortcut != null && shortcut.getExtra("orientation").equals("portrait")) {
+                setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
+            }
 
             String graphicsDriver = container.getGraphicsDriver();
             audioDriver = container.getAudioDriver();

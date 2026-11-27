@@ -22,15 +22,18 @@ A menüben válaszd a **Spotify + Spicetify** pontot, és nyomd meg sorban a gom
    - Spicetify Marketplace (GitHub, `spicetify/marketplace`)
 2. **Spotify telepítése** – lefut a Spotify telepítője. Jelentkezz be, aztán zárd be a Spotify-t.
 3. **Spicetify alkalmazása** – beállítja a Marketplace-t, és alkalmazza a Spicetify-t.
-4. **Spotify indítása** – elindul a Spotify a Spicetify-jal.
+4. **Spotify indítása – álló, telefonos** – a Spotify álló képernyővel, telefonos felbontásban (864×1920) indul, a **MusicSpot Mobile** Spicetify-témával: nagyobb felület és gombok, keskeny könyvtársáv, rejtett jobb oldalsáv.
+   - **Spotify indítása – fekvő, asztali**: a megszokott, számítógépes kinézet (ugyanaz a téma fekvő ablaknál nem változtat a felületen).
 
 Ha a Spotify frissít, és eltűnnek a módosítások: **„Spicetify újra”** gomb.
+
+A mobil téma a `app/src/main/assets/musicspot/MusicSpotMobile/user.css` fájlban van; a telefonon a `%APPDATA%\spicetify\Themes\MusicSpotMobile` mappába kerül. A nagyítást a `--musicspot-zoom` érték állítja (alapból 1.5). Ha a Marketplace-ből másik témát választasz, az felülírja a mobil témát.
 
 Témákat és bővítményeket a Spotify-on belül, a **Marketplace** menüpontban lehet telepíteni.
 
 ### Ha valami nem megy
 
-- **Fekete ablak / összeomlás:** Parancsikonok → „MusicSpot - Spotify” → beállítások → indítási paraméterek: `--disable-gpu`.
+- **Fekete ablak / összeomlás:** Parancsikonok → „MusicSpot - Spotify (allo)” vagy „(fekvo)” → beállítások → indítási paraméterek: `--disable-gpu`.
 - **Lassú:** a konténer beállításainál próbáld a Box64 „Performance” presetet.
 - **Nincs hang:** a konténer beállításainál válts ALSA ↔ PulseAudio között.
 
