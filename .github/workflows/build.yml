@@ -4,6 +4,9 @@ on:
   push:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -33,3 +36,18 @@ jobs:
         with:
           name: MusicSpot-apk
           path: app/build/outputs/apk/debug/*.apk
+
+      - name: Rename APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk MusicSpot-${{ github.run_number }}.apk
+
+      - name: Publish APK as a GitHub release (direct download, no zip)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: MusicSpot #${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          prerelease: true
+          body: |
+            Közvetlenül telepíthető APK. Verzió: MusicSpot #${{ github.run_number }}
+            Commit: ${{ github.sha }}
+          files: MusicSpot-${{ github.run_number }}.apk
