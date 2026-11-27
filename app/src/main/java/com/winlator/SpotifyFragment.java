@@ -116,6 +116,7 @@ public class SpotifyFragment extends Fragment {
         addButton(layout, "4. Spotify indítása – álló, telefonos", v -> launchShortcut(SHORTCUT_PORTRAIT));
         addButton(layout, "Spotify indítása – fekvő, asztali", v -> launchShortcut(SHORTCUT_LANDSCAPE));
         addButton(layout, "Spicetify újra (Spotify frissítés után)", v -> launchScript("reapply.bat"));
+        addButton(layout, "Spicetify kikapcsolása (eredeti Spotify, hibakereséshez)", v -> launchScript("restore.bat"));
 
         TextView help = new TextView(context);
         help.setText("\nTippek:\n" +
@@ -327,6 +328,12 @@ public class SpotifyFragment extends Fragment {
         FileUtils.writeString(new File(workDir, "reapply.bat"), header +
             "spicetify.exe --bypass-admin restore backup apply\r\n" +
             footer);
+
+        FileUtils.writeString(new File(workDir, "restore.bat"), header +
+            "spicetify.exe --bypass-admin restore\r\n" +
+            "echo.\r\n" +
+            "echo A Spotify most eredeti, Spicetify nelkul fut. Visszakapcsolas: 3. gomb.\r\n" +
+            "pause\r\n");
     }
 
     private void createShortcuts(Container container) {
@@ -337,6 +344,7 @@ public class SpotifyFragment extends Fragment {
         writeShortcut(new File(desktopDir, SHORTCUT_LANDSCAPE + ".desktop"), SPOTIFY_EXE_DOS, "");
         writeShortcut(new File(desktopDir, "MusicSpot - Spicetify alkalmazasa.desktop"), CMD_EXE_DOS, "execArgs=/c " + WORK_DIR_DOS + "\\apply.bat\n");
         writeShortcut(new File(desktopDir, "MusicSpot - Spicetify ujra.desktop"), CMD_EXE_DOS, "execArgs=/c " + WORK_DIR_DOS + "\\reapply.bat\n");
+        writeShortcut(new File(desktopDir, "MusicSpot - Spicetify kikapcsolasa.desktop"), CMD_EXE_DOS, "execArgs=/c " + WORK_DIR_DOS + "\\restore.bat\n");
     }
 
     private void installTheme(Container container) {
@@ -389,8 +397,16 @@ public class SpotifyFragment extends Fragment {
             toast("A Spicetify még nincs letöltve. Futtasd az 1. lépést.");
             return;
         }
-        installTheme(getSpotifyContainer());
-        launchShortcut(name.equals("apply.bat") ? "MusicSpot - Spicetify alkalmazasa" : "MusicSpot - Spicetify ujra");
+        Container container = getSpotifyContainer();
+        installTheme(container);
+        writeScripts(workDir); // older installs may lack newer scripts
+        String shortcut;
+        switch (name) {
+            case "apply.bat": shortcut = "MusicSpot - Spicetify alkalmazasa"; break;
+            case "restore.bat": shortcut = "MusicSpot - Spicetify kikapcsolasa"; break;
+            default: shortcut = "MusicSpot - Spicetify ujra"; break;
+        }
+        launchShortcut(shortcut);
     }
 
     private void launchShortcut(String name) {
