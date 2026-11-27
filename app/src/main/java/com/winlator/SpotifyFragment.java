@@ -62,6 +62,9 @@ public class SpotifyFragment extends Fragment {
     private static final String PORTRAIT_SCREEN_SIZE = "864x1920";
     private static final String SHORTCUT_PORTRAIT = "MusicSpot - Spotify (allo)";
     private static final String SHORTCUT_LANDSCAPE = "MusicSpot - Spotify (fekvo)";
+    private static final String SHORTCUT_DEBUG = "MusicSpot - Spotify (naplo)";
+    private static final String DEBUG_ARGS = "--disable-gpu --disable-gpu-compositing --no-sandbox --enable-logging=stderr";
+    private static final String PREF_DEBUG = "musicspot_debug";
 
     private TextView statusView;
     private ContainerManager manager;
@@ -117,6 +120,8 @@ public class SpotifyFragment extends Fragment {
         addButton(layout, "Spotify indítása – fekvő, asztali", v -> launchShortcut(SHORTCUT_LANDSCAPE));
         addButton(layout, "Spicetify újra (Spotify frissítés után)", v -> launchScript("reapply.bat"));
         addButton(layout, "Spicetify kikapcsolása (eredeti Spotify, hibakereséshez)", v -> launchScript("restore.bat"));
+        addButton(layout, "Hibakereső indítás (napló készítése)", v -> launchDebug());
+        addButton(layout, "Napló másolása a vágólapra", v -> copyLog());
 
         TextView help = new TextView(context);
         help.setText("\nTippek:\n" +
@@ -342,6 +347,7 @@ public class SpotifyFragment extends Fragment {
         writeShortcut(new File(desktopDir, SHORTCUT_PORTRAIT + ".desktop"), SPOTIFY_EXE_DOS,
             "screenSize=" + PORTRAIT_SCREEN_SIZE + "\norientation=portrait\n");
         writeShortcut(new File(desktopDir, SHORTCUT_LANDSCAPE + ".desktop"), SPOTIFY_EXE_DOS, "");
+        writeShortcut(new File(desktopDir, SHORTCUT_DEBUG + ".desktop"), SPOTIFY_EXE_DOS, "execArgs=" + DEBUG_ARGS + "\n");
         writeShortcut(new File(desktopDir, "MusicSpot - Spicetify alkalmazasa.desktop"), CMD_EXE_DOS, "execArgs=/c " + WORK_DIR_DOS + "\\apply.bat\n");
         writeShortcut(new File(desktopDir, "MusicSpot - Spicetify ujra.desktop"), CMD_EXE_DOS, "execArgs=/c " + WORK_DIR_DOS + "\\reapply.bat\n");
         writeShortcut(new File(desktopDir, "MusicSpot - Spicetify kikapcsolasa.desktop"), CMD_EXE_DOS, "execArgs=/c " + WORK_DIR_DOS + "\\restore.bat\n");
@@ -409,8 +415,75 @@ public class SpotifyFragment extends Fragment {
         launchShortcut(shortcut);
     }
 
-    private void launchShortcut(String name) {
+    private File getLogFile() {
+        return new File(requireContext().getFilesDir(), "musicspot-log.txt");
+    }
+
+    private void setDebugMode(boolean enabled) {
+        SharedPreferences.Editor editor = preferences.edit();
+        if (enabled) {
+            editor.putBoolean("enable_wine_debug", true)
+                .putString("wine_debug_channels", "err")
+                .putBoolean("save_logs_to_file", true)
+                .putString("log_file", getLogFile().getPath())
+                .putInt("box64_logs", 1)
+                .putBoolean(PREF_DEBUG, true);
+        }
+        else if (preferences.getBoolean(PREF_DEBUG, false)) {
+            editor.putBoolean("enable_wine_debug", false)
+                .putBoolean("save_logs_to_file", false)
+                .remove("log_file")
+                .putInt("box64_logs", 0)
+                .putBoolean(PREF_DEBUG, false);
+        }
+        editor.apply();
+    }
+
+    private void launchDebug() {
         if (!ensureReady()) return;
+        setDebugMode(true);
+        toast("Hibakereső mód: várj 3–5 percet, majd lépj ki (Vissza → Exit), és nyomd meg a „Napló másolása” gombot.");
+        launchShortcut(SHORTCUT_DEBUG, true);
+    }
+
+    private void copyLog() {
+        File logFile = getLogFile();
+        if (!logFile.isFile() || logFile.length() == 0) {
+            toast("Még nincs napló. Előbb futtasd a „Hibakereső indítás” gombot.");
+            return;
+        }
+        java.util.ArrayList<String> lines = FileUtils.readLines(logFile, true);
+        java.util.ArrayList<String> important = new java.util.ArrayList<>();
+        for (String line : lines) {
+            String l = line.toLowerCase(java.util.Locale.ENGLISH);
+            if (l.contains("err:") || l.contains(":error:") || l.contains("fatal") || l.contains("exception") ||
+                l.contains("segfault") || l.contains("sigsegv") || l.contains("missing") || l.contains("not found") ||
+                l.contains("unimplemented") || l.contains("failed")) {
+                important.add(line);
+            }
+        }
+        java.util.List<String> selected = important.isEmpty() ? lines : important;
+        int from = Math.max(0, selected.size() - 120);
+        StringBuilder sb = new StringBuilder();
+        sb.append("MusicSpot napló (").append(lines.size()).append(" sor, ").append(important.size()).append(" fontos)\n");
+        for (int i = from; i < selected.size(); i++) sb.append(selected.get(i)).append('\n');
+        if (!important.isEmpty()) {
+            sb.append("--- utolsó 30 sor ---\n");
+            for (int i = Math.max(0, lines.size() - 30); i < lines.size(); i++) sb.append(lines.get(i)).append('\n');
+        }
+
+        android.content.ClipboardManager clipboard = (android.content.ClipboardManager)requireContext().getSystemService(Context.CLIPBOARD_SERVICE);
+        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("MusicSpot napló", sb.toString()));
+        toast("A napló a vágólapon van – illeszd be a chatbe.");
+    }
+
+    private void launchShortcut(String name) {
+        launchShortcut(name, false);
+    }
+
+    private void launchShortcut(String name, boolean debug) {
+        if (!ensureReady()) return;
+        if (!debug) setDebugMode(false);
         Container container = getSpotifyContainer();
         createShortcuts(container);
         File shortcut = new File(new File(container.getUserDir(), "Desktop"), name + ".desktop");
