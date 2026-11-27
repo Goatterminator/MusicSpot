@@ -15,10 +15,12 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: android-actions/setup-android@v3
-
-      - name: Install NDK and CMake
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;24.0.8215888" "cmake;3.22.1"
+      - name: Install NDK and CMake (runner already has the Android SDK)
+        run: |
+          SDKM=$(ls -d $ANDROID_HOME/cmdline-tools/*/bin/sdkmanager | sort -V | tail -1)
+          echo "Using $SDKM"
+          yes | "$SDKM" --licenses > /dev/null || true
+          "$SDKM" "platforms;android-35" "build-tools;35.0.0" "ndk;24.0.8215888" "cmake;3.22.1"
 
       - uses: gradle/actions/setup-gradle@v4
 
