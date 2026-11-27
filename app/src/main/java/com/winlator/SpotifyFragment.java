@@ -63,8 +63,15 @@ public class SpotifyFragment extends Fragment {
     private static final String SHORTCUT_PORTRAIT = "MusicSpot - Spotify (allo)";
     private static final String SHORTCUT_LANDSCAPE = "MusicSpot - Spotify (fekvo)";
     private static final String SHORTCUT_DEBUG = "MusicSpot - Spotify (naplo)";
+    private static final String SHORTCUT_COMPAT = "MusicSpot - Spotify (kompatibilis)";
     // OpenGL is not available to Wine on many phones (log: "Unable to activate OpenGL context"), so render in software.
-    private static final String SAFE_ARGS = "--disable-gpu --disable-gpu-compositing --no-sandbox";
+    // Under Wine, Chromium's native-window occlusion check can decide the window is hidden and never paint it,
+    // and DirectComposition / renderer code integrity are not available - so turn those off as well.
+    private static final String ARGS_MARKER = "CalculateNativeWinOcclusion";
+    private static final String SAFE_ARGS = "--disable-gpu --disable-gpu-compositing --no-sandbox --in-process-gpu " +
+        "--disable-direct-composition --disable-features=CalculateNativeWinOcclusion,RendererCodeIntegrity";
+    // Last resort: everything in one process (slower, but avoids separate renderer processes).
+    private static final String COMPAT_ARGS = SAFE_ARGS + " --single-process";
     private static final String DEBUG_ARGS = SAFE_ARGS + " --enable-logging=stderr";
     private static final String PREF_DEBUG = "musicspot_debug";
 
@@ -120,6 +127,7 @@ public class SpotifyFragment extends Fragment {
         addButton(layout, "3. Spicetify alkalmazása", v -> launchScript("apply.bat"));
         addButton(layout, "4. Spotify indítása – álló, telefonos", v -> launchShortcut(SHORTCUT_PORTRAIT));
         addButton(layout, "Spotify indítása – fekvő, asztali", v -> launchShortcut(SHORTCUT_LANDSCAPE));
+        addButton(layout, "Spotify indítása – kompatibilis mód (ha fekete marad)", v -> launchShortcut(SHORTCUT_COMPAT));
         addButton(layout, "Spicetify újra (Spotify frissítés után)", v -> launchScript("reapply.bat"));
         addButton(layout, "Spicetify kikapcsolása (eredeti Spotify, hibakereséshez)", v -> launchScript("restore.bat"));
         addButton(layout, "Hibakereső indítás (napló készítése)", v -> launchDebug());
@@ -359,12 +367,11 @@ public class SpotifyFragment extends Fragment {
     }
 
     /** Older shortcuts were created without arguments; give them the safe software-rendering ones. */
-    private void ensureSafeArgs(File shortcutFile, Container container) {
+    private void ensureSafeArgs(File shortcutFile, Container container, String desiredArgs) {
         if (!shortcutFile.isFile()) return;
         com.winlator.container.Shortcut shortcut = new com.winlator.container.Shortcut(container, shortcutFile);
-        String args = shortcut.getExtra("execArgs");
-        if (!args.contains("--disable-gpu")) {
-            shortcut.putExtra("execArgs", (SAFE_ARGS + " " + args).trim());
+        if (!shortcut.getExtra("execArgs").contains(ARGS_MARKER)) {
+            shortcut.putExtra("execArgs", desiredArgs);
             shortcut.saveData();
         }
     }
@@ -372,8 +379,10 @@ public class SpotifyFragment extends Fragment {
     private void createShortcuts(Container container) {
         File desktopDir = new File(container.getUserDir(), "Desktop");
         desktopDir.mkdirs();
-        ensureSafeArgs(new File(desktopDir, SHORTCUT_PORTRAIT + ".desktop"), container);
-        ensureSafeArgs(new File(desktopDir, SHORTCUT_LANDSCAPE + ".desktop"), container);
+        ensureSafeArgs(new File(desktopDir, SHORTCUT_PORTRAIT + ".desktop"), container, SAFE_ARGS);
+        ensureSafeArgs(new File(desktopDir, SHORTCUT_LANDSCAPE + ".desktop"), container, SAFE_ARGS);
+        ensureSafeArgs(new File(desktopDir, SHORTCUT_DEBUG + ".desktop"), container, DEBUG_ARGS);
+        writeShortcut(new File(desktopDir, SHORTCUT_COMPAT + ".desktop"), SPOTIFY_EXE_DOS, "execArgs=" + COMPAT_ARGS + "\n");
         writeShortcut(new File(desktopDir, SHORTCUT_PORTRAIT + ".desktop"), SPOTIFY_EXE_DOS,
             "screenSize=" + PORTRAIT_SCREEN_SIZE + "\norientation=portrait\nexecArgs=" + SAFE_ARGS + "\n");
         writeShortcut(new File(desktopDir, SHORTCUT_LANDSCAPE + ".desktop"), SPOTIFY_EXE_DOS, "execArgs=" + SAFE_ARGS + "\n");
